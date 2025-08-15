@@ -10,6 +10,8 @@ My focus was making the API super easy to use. The only parameters the user need
 * Automatically identifies url from the above step.
 * Automatically identifies http method as POST or GET for the request per Qualys documentation.
 
+Now a MON-CSIRT project :D
+
 Usage
 =====
 
