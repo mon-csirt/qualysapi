@@ -1,26 +1,34 @@
 import logging
 import time
 from urllib import parse as urlparse
-
-from lxml import objectify
-
+import re
+# from lxml import objectify
+import xml.etree.ElementTree as ET
 from qualysapi.api_objects import *
-
+from qualysapi import connector
 
 class QGActions:
     def getHost(self, host):
-        call = "/api/2.0/fo/asset/host/"
-        parameters = {"action": "list", "ips": host, "details": "All"}
-        hostData = objectify.fromstring(self.request(call, parameters).encode("utf-8")).RESPONSE
-        hostData = hostData.HOST_LIST.HOST
+        call = "search/am/asset"
+        parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="name" operator="CONTAINS">{host}</Criteria></filters></ServiceRequest>"""
+        hostData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+        # hostData = hostData.HOST_LIST.HOST
+        tree =hostData.find('data')
+        for item in tree.findall('Asset'):
+            asset_id = item.find("id").text if item.find('id') is not None else None
+            item_data = {}
+            item_data["id"] = item.find("id").text if item.find('id') is not None else None
+            item_data["name"] = item.find("name").text if item.find('name') is not None else None
+            # asset_name=item_data["name"]
+            item_data["created"] = item.find("created").text if item.find('created') is not None else None
+            item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
+            item_data["type"] = item.find("type").text if item.find('type') is not None else None
         return Host(
-            hostData.find("DNS"),
-            hostData.find("ID"),
-            hostData.find("IP"),
-            hostData.find("LAST_VULN_SCAN_DATETIME"),
-            hostData.find("NETBIOS"),
-            hostData.find("OS"),
-            hostData.find("TRACKING_METHOD"),
+            item_data["name"],
+            item_data["id"],
+            item_data["type"],
+            item_data["created"],
+            item_data["modified"],
         )
 
     def listHosts(
@@ -584,3 +592,53 @@ class QGActions:
             )
 
         return scanner_array
+
+    def getTag(self, name):
+        call = "search/am/tag"
+        parameters= f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="name" operator="EQUALS">{name}</Criteria></filters></ServiceRequest>"""
+        tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+        tree =tagData.find('data')
+        for item in tree.findall('Tag'):
+            item_data = {}
+            item_data["id"] = item.find("id").text if item.find('id') is not None else None
+            item_data["name"] = item.find("name").text if item.find('name') is not None else None
+            item_data["created"] = item.find("created").text if item.find('created') is not None else None
+            item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
+            item_data["colour"] = item.find("color").text if item.find('color') is not None else None
+        return Tag(
+            item_data["name"],
+            item_data["id"],
+            item_data["colour"],
+            item_data["created"],
+            item_data["modified"],
+        )
+    def editTag(self, tag: Tag):
+        call = "blah"
+        #TODO
+    def createTag(self, name: str, colour=None):
+        call = 'create/am/tag'
+        colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
+        if colour is None:
+            colour = "#FFFFFF"
+        if not colour_validation.fullmatch(colour):
+            return False
+        parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name><color>{colour}</color></Tag></data></ServiceRequest>"""
+        tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+        tree =tagData.find('data')
+        for item in tree.findall('Tag'):
+            item_data = {}
+            item_data["id"] = item.find("id").text if item.find('id') is not None else None
+            item_data["name"] = item.find("name").text if item.find('name') is not None else None
+            item_data["created"] = item.find("created").text if item.find('created') is not None else None
+            item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
+            item_data["colour"] = item.find("color").text if item.find('color') is not None else None
+        return Tag(
+            item_data["name"],
+            item_data["id"],
+            item_data["colour"],
+            item_data["created"],
+            item_data["modified"],
+        )
+    def deleteTag(self, tag: Tag):
+        #TODO
+        blah = "blah"
