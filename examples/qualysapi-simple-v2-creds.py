@@ -2,9 +2,11 @@
 
 # Use the defusedxml package for all xml parsing. See bandit docs: 
 # https://bandit.readthedocs.io/en/latest/blacklists/blacklist_imports.html#b405-import-xml-etree
-from defusedxml.ElementTree import fromstring
+from xml.etree.ElementTree import fromstring
 from qualysapi import connect
-
+from dotenv import load_dotenv
+import os
+load_dotenv()
 # API url to pull data from. See qualys docs for a list of APIs
 api_url = "/api/2.0/fo/asset/host/"
 
@@ -16,10 +18,10 @@ params = {
 
 # Create a connection object used to pull data from Qualys
 conn = connect(
-    username="<username>", # Qualys Username
-    password="<password>", # Qualys Password
-    hostname="<hostname>", # Optional api host url
-    max_retries="<#>",     # Optional # of retries
+    username=os.getenv("USR"), # Qualys Username
+    password=os.getenv("PSWD"), # Qualys Password
+    hostname="qualysapi.qg1.apps.qualys.com.au", # Optional api host url
+    # max_retries="<#>",     # Optional # of retries
 )
 
 # Perform API request
