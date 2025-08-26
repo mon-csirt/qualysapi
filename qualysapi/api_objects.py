@@ -20,6 +20,7 @@ class Host:
             )
         except IndexError:
             self.last_scan = "never"
+        self.tags = tags
         # except 
         # self.netbios = str(netbios)
         # self.os = str(os)

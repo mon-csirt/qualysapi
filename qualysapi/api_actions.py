@@ -24,6 +24,23 @@ class QGActions:
             item_data["created"] = item.find("created").text if item.find('created') is not None else None
             item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
             item_data["type"] = item.find("type").text if item.find('type') is not None else None
+            item_data["has_tags"] = item.find('tags') if item.find('tags') is not None else None
+            if item_data['has_tags'] is not None:
+                self.host_tags = []
+                for children in tree.iter('tags'):
+                    for tags in children.iter('list'):
+                        for tag in tags.iter('TagSimple'):
+                            single_tag = tag.find('id').text if tag.find('id') is not None else None
+                            if single_tag is not None:
+                                self.host_tags.append(self.getTag(id=single_tag))
+                return Host(
+                    item_data["name"],
+                    item_data["id"],
+                    item_data["type"],
+                    item_data["created"],
+                    item_data["modified"],
+                    tags=self.host_tags
+                )
         return Host(
             item_data["name"],
             item_data["id"],
@@ -641,6 +658,7 @@ class QGActions:
         call = "blah"
         #TODO
     def createTag(self, name: str, colour=None):
+        #TODO: Validation of creation
         call = 'create/am/tag'
         colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
         if colour is None:
