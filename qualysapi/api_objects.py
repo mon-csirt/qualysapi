@@ -1,25 +1,26 @@
 import datetime
 
-from lxml import objectify
+# from lxml import objectify
 
 
 class Host:
-    def __init__(self, dns, id, host_type,created,modified):
+    def __init__(self, dns, id, host_type,created,modified,ip=None,last_scan=None,tags=None):
         self.dns = str(dns)
         self.id = int(id)
         self.host_type = str(host_type)
         self.created = str(created)
         self.modified = str(modified)
-        # self.ip = str(ip)
-        # try:
-        #     last_scan = str(last_scan).replace("T", " ").replace("Z", "").split(" ")
-        #     date = last_scan[0].split("-")
-        #     time = last_scan[1].split(":")
-        #     self.last_scan = datetime.datetime(
-        #         int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2])
-        #     )
-        # except IndexError:
-        #     self.last_scan = "never"
+        self.ip = ip
+        try:
+            last_scan = str(last_scan).replace("T", " ").replace("Z", "").split(" ")
+            date = last_scan[0].split("-")
+            time = last_scan[1].split(":")
+            self.last_scan = datetime.datetime(
+                int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2])
+            )
+        except IndexError:
+            self.last_scan = "never"
+        # except 
         # self.netbios = str(netbios)
         # self.os = str(os)
         # self.tracking_method = str(tracking_method)
@@ -208,12 +209,24 @@ class Scanner:
         self.status = status
 
 class Tag:
-    def __init__(self, name, id, colour, created, modified):
+    def __init__(self, name: str, id: int, colour: str, created:str, modified:str,child_tags=None,description=None):
         self.name = str(name)
         self.id = int(id)
         self.colour = str(colour)
-        self.created = str(created)
-        self.modified = str(modified)
-        
+        # convert times from str to datetime objects... because datetime is for time
+        process_created = str(created).replace("T", " ").replace("Z", "").split(" ")
+        date = process_created[0].split("-")
+        time = process_created[1].split(":")
+        self.created = datetime.datetime(
+            int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2])
+        )
+        process_modified = str(modified).replace("T", " ").replace("Z", "").split(" ")
+        date = process_modified[0].split("-")
+        time = process_modified[1].split(":")
+        self.modified = datetime.datetime(
+            int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2])
+        )
+        self.description = description
+        self.child_tags = child_tags
     def __repr__(self):
         return f"qualys_id: {self.id}, name: {self.name}"

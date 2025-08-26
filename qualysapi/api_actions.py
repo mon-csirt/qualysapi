@@ -6,7 +6,8 @@ import re
 import xml.etree.ElementTree as ET
 from qualysapi.api_objects import *
 from qualysapi import connector
-
+#Globals
+child_tags_list = None
 class QGActions:
     def getHost(self, host):
         call = "search/am/asset"
@@ -593,11 +594,13 @@ class QGActions:
 
         return scanner_array
 
-    def getTag(self, name):
+    def getTag(self, name=None,id=None):
+        #TODO: fix recursion where multiple layers of child tags exist
         call = "search/am/tag"
-        parameters= f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="name" operator="EQUALS">{name}</Criteria></filters></ServiceRequest>"""
+        parameters= f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="name" operator="EQUALS">{name}</Criteria></filters></ServiceRequest>""" if name is not None else f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="id" operator="EQUALS">{id}</Criteria></filters></ServiceRequest>"""
         tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
         tree =tagData.find('data')
+        # self.child_tag_list = None
         for item in tree.findall('Tag'):
             item_data = {}
             item_data["id"] = item.find("id").text if item.find('id') is not None else None
@@ -605,12 +608,34 @@ class QGActions:
             item_data["created"] = item.find("created").text if item.find('created') is not None else None
             item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
             item_data["colour"] = item.find("color").text if item.find('color') is not None else None
-        return Tag(
-            item_data["name"],
-            item_data["id"],
-            item_data["colour"],
-            item_data["created"],
-            item_data["modified"],
+            item_data['description'] = item.find('description').text if item.find('description') is not None else None
+            item_data['has_children'] = item.find('children') if item.find('children') is not None else None
+        if item_data['has_children'] is not None:
+            self.child_tags_list = []
+            for list in tree.iter('children'):
+                for items in list.iter('list'):
+                    for tags in items.iter('TagSimple'):
+                        single_tag = tags.find('id').text if item.find('id') is not None else None
+                        if single_tag is not None:
+                            tag = self.getTag(id=single_tag)
+                            self.child_tags_list.append(tag)
+            return Tag(
+                name=item_data["name"],
+                id=item_data["id"],
+                colour=item_data["colour"],
+                created=item_data["created"],
+                modified=item_data["modified"],
+                description=item_data['description'],
+                child_tags=self.child_tags_list,
+            )
+        else:
+            return Tag(
+                name=item_data["name"],
+                id=item_data["id"],
+                colour=item_data["colour"],
+                created=item_data["created"],
+                modified=item_data["modified"],
+                description=item_data['description'],
         )
     def editTag(self, tag: Tag):
         call = "blah"
