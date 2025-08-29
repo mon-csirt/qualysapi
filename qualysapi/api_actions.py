@@ -9,45 +9,50 @@ from qualysapi import connector
 #Globals
 child_tags_list = None
 class QGActions:
-    def getHost(self, host):
-        call = "search/am/asset"
-        parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="name" operator="CONTAINS">{host}</Criteria></filters></ServiceRequest>"""
-        hostData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
-        # hostData = hostData.HOST_LIST.HOST
-        tree =hostData.find('data')
-        for item in tree.findall('Asset'):
-            asset_id = item.find("id").text if item.find('id') is not None else None
-            item_data = {}
-            item_data["id"] = item.find("id").text if item.find('id') is not None else None
-            item_data["name"] = item.find("name").text if item.find('name') is not None else None
-            # asset_name=item_data["name"]
-            item_data["created"] = item.find("created").text if item.find('created') is not None else None
-            item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
-            item_data["type"] = item.find("type").text if item.find('type') is not None else None
-            item_data["has_tags"] = item.find('tags') if item.find('tags') is not None else None
-            if item_data['has_tags'] is not None:
-                self.host_tags = []
-                for children in tree.iter('tags'):
-                    for tags in children.iter('list'):
-                        for tag in tags.iter('TagSimple'):
-                            single_tag = tag.find('id').text if tag.find('id') is not None else None
-                            if single_tag is not None:
-                                self.host_tags.append(self.getTag(id=single_tag))
-                return Host(
-                    item_data["name"],
-                    item_data["id"],
-                    item_data["type"],
-                    item_data["created"],
-                    item_data["modified"],
-                    tags=self.host_tags
-                )
-        return Host(
-            item_data["name"],
-            item_data["id"],
-            item_data["type"],
-            item_data["created"],
-            item_data["modified"],
-        )
+    def getHost(self, host_name=None, host_id=None, verbose=False):
+        if verbose:
+            call = 'rest/2.0/get/am/asset'
+            parameters = host_id
+            #TODO: implement verbose retrieval
+        else:
+            call = "search/am/asset"
+            parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="name" operator="CONTAINS">{host_name}</Criteria></filters></ServiceRequest>"""
+            hostData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+            # hostData = hostData.HOST_LIST.HOST
+            tree =hostData.find('data')
+            for item in tree.findall('Asset'):
+                asset_id = item.find("id").text if item.find('id') is not None else None
+                item_data = {}
+                item_data["id"] = item.find("id").text if item.find('id') is not None else None
+                item_data["name"] = item.find("name").text if item.find('name') is not None else None
+                # asset_name=item_data["name"]
+                item_data["created"] = item.find("created").text if item.find('created') is not None else None
+                item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
+                item_data["type"] = item.find("type").text if item.find('type') is not None else None
+                item_data["has_tags"] = item.find('tags') if item.find('tags') is not None else None
+                if item_data['has_tags'] is not None:
+                    self.host_tags = []
+                    for children in tree.iter('tags'):
+                        for tags in children.iter('list'):
+                            for tag in tags.iter('TagSimple'):
+                                single_tag = tag.find('id').text if tag.find('id') is not None else None
+                                if single_tag is not None:
+                                    self.host_tags.append(self.getTag(id=single_tag))
+                    return Host(
+                        item_data["name"],
+                        item_data["id"],
+                        item_data["type"],
+                        item_data["created"],
+                        item_data["modified"],
+                        tags=self.host_tags
+                    )
+            return Host(
+                item_data["name"],
+                item_data["id"],
+                item_data["type"],
+                item_data["created"],
+                item_data["modified"],
+            )
 
     def listHosts(
         self,
@@ -683,5 +688,17 @@ class QGActions:
             item_data["modified"],
         )
     def deleteTag(self, tag: Tag):
-        #TODO
-        blah = "blah"
+        # delete a tag given a tag object
+        # input: Tag object
+        # output: boolean denoting status of deletion attempt
+        call = 'delete/am/tag'
+        parameters = tag.id
+        if self.getTag(tag.id) is not None:
+            #delete process
+            deletedTagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode('utf-8'))
+            tree = deletedTagData.getroot()
+            for item in tree.findall('responseCode'):
+                if item.text == 'SUCCESS':
+                    return True
+        else:
+            return False
