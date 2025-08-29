@@ -480,40 +480,41 @@ class QGActions:
 
         return scanArray
 
-    def listChildTags(self, tag_name=None, tag_id=None, filename=None):
-        if tag_id:
-            files = (
-                """<ServiceRequest>
-<filters>
-<Criteria field="id" operator="EQUALS">"""
-                + tag_id
-                + """</Criteria>
-</filters>
-</ServiceRequest>"""
-            )
-        elif filename:
-            files = open(filename, "rb").read()
-        elif tag_name:
-            files = (
-                """<ServiceRequest>
-<filters>
-<Criteria field="name" operator="EQUALS">"""
-                + tag_name
-                + """</Criteria>
-</filters>
-</ServiceRequest>"""
-            ).encode("ascii", "ignore")
+#   don't need this anymore I reckon  
+#   def listChildTags(self, tag_name=None, tag_id=None, filename=None):
+#         if tag_id:
+#             files = (
+#                 """<ServiceRequest>
+# <filters>
+# <Criteria field="id" operator="EQUALS">"""
+#                 + tag_id
+#                 + """</Criteria>
+# </filters>
+# </ServiceRequest>"""
+#             )
+#         elif filename:
+#             files = open(filename, "rb").read()
+#         elif tag_name:
+#             files = (
+#                 """<ServiceRequest>
+# <filters>
+# <Criteria field="name" operator="EQUALS">"""
+#                 + tag_name
+#                 + """</Criteria>
+# </filters>
+# </ServiceRequest>"""
+#             ).encode("ascii", "ignore")
 
-        call = "/qps/rest/2.0/search/am/tag"
-        parameters = files
-        response = objectify.fromstring(
-            self.request(call, parameters, api_version=2, http_method="post").encode("utf-8")
-        )
-        childs = list()
-        for child in response.getchildren()[3][0].Tag.children.list.getchildren():
-            childs.append(child.getchildren())
+#         call = "/qps/rest/2.0/search/am/tag"
+#         parameters = files
+#         response = objectify.fromstring(
+#             self.request(call, parameters, api_version=2, http_method="post").encode("utf-8")
+#         )
+#         childs = list()
+#         for child in response.getchildren()[3][0].Tag.children.list.getchildren():
+#             childs.append(child.getchildren())
 
-        return childs
+#         return childs
 
     def launchScan(self, title, option_title, iscanner_name, asset_groups="", ip=""):
         # TODO: Add ability to scan by tag.
@@ -620,6 +621,7 @@ class QGActions:
     def getTag(self, tag_name=None,tag_id=None):
         #TODO: fix recursion where multiple layers of child tags exist
         #TODO: enable searching by all types of search parameters through arguments passed
+        #TODO: retrieve additional attributes such as rule for dynamic tags, criticality
         call = "search/am/tag"
         if (tag_name is not None) and (tag_id is not None):
             logger.error('Error: unable to search, both tag name and id provided')
@@ -681,6 +683,7 @@ class QGActions:
         #TODO
     def createTag(self, name: str, colour=None):
         #TODO: Validation of creation
+        #TODO: ability to create tags with criticality, child tags, dynamic rules
         call = 'create/am/tag'
         colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
         if colour is None:
@@ -718,11 +721,12 @@ class QGActions:
         call = 'delete/am/tag/'+str(tag.id)
         parameters = None
         if self.getTag(tag.name) is not None:
-            #delete process
             deletedTagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode('utf-8'))
-            # tree = deletedTagData.getroot()
             for item in deletedTagData.findall('responseCode'):
                 if item.text == 'SUCCESS':
                     return True
+                else:
+                    logger.error(f'Error: deletion failed for tag {tag.name}')
+                    return False
         else:
             return False

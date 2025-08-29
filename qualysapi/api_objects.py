@@ -210,7 +210,7 @@ class Scanner:
         self.status = status
 
 class Tag:
-    def __init__(self, name: str, id: int, colour: str, created:str, modified:str,child_tags=None,description=None):
+    def __init__(self, name: str, id: int, colour: str, created:str, modified:str,child_tags=None,description=None,criticality=None,dynamic=None,dynamic_rule=None):
         self.name = str(name)
         self.id = int(id)
         self.colour = str(colour)
@@ -229,5 +229,8 @@ class Tag:
         )
         self.description = description
         self.child_tags = child_tags
+        self.dynamic = dynamic
+        self.dynamic_rule = dynamic_rule
+        self.criticality = criticality
     def __repr__(self):
         return f"qualys_id: {self.id}, name: {self.name}"
