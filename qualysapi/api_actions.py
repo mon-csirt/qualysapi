@@ -8,6 +8,7 @@ from qualysapi.api_objects import *
 from qualysapi import connector
 #Globals
 child_tags_list = None
+logger = logging.getLogger(__name__)
 class QGActions:
     def getHost(self, host_name=None, host_id=None, verbose=False):
         if verbose:
@@ -616,49 +617,65 @@ class QGActions:
 
         return scanner_array
 
-    def getTag(self, name=None,id=None):
+    def getTag(self, tag_name=None,tag_id=None):
         #TODO: fix recursion where multiple layers of child tags exist
+        #TODO: enable searching by all types of search parameters through arguments passed
         call = "search/am/tag"
-        parameters= f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="name" operator="EQUALS">{name}</Criteria></filters></ServiceRequest>""" if name is not None else f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="id" operator="EQUALS">{id}</Criteria></filters></ServiceRequest>"""
-        tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
-        tree =tagData.find('data')
-        # self.child_tag_list = None
-        for item in tree.findall('Tag'):
-            item_data = {}
-            item_data["id"] = item.find("id").text if item.find('id') is not None else None
-            item_data["name"] = item.find("name").text if item.find('name') is not None else None
-            item_data["created"] = item.find("created").text if item.find('created') is not None else None
-            item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
-            item_data["colour"] = item.find("color").text if item.find('color') is not None else None
-            item_data['description'] = item.find('description').text if item.find('description') is not None else None
-            item_data['has_children'] = item.find('children') if item.find('children') is not None else None
-        if item_data['has_children'] is not None:
-            self.child_tags_list = []
-            for list in tree.iter('children'):
-                for items in list.iter('list'):
-                    for tags in items.iter('TagSimple'):
-                        single_tag = tags.find('id').text if item.find('id') is not None else None
-                        if single_tag is not None:
-                            tag = self.getTag(id=single_tag)
-                            self.child_tags_list.append(tag)
-            return Tag(
-                name=item_data["name"],
-                id=item_data["id"],
-                colour=item_data["colour"],
-                created=item_data["created"],
-                modified=item_data["modified"],
-                description=item_data['description'],
-                child_tags=self.child_tags_list,
-            )
+        if (tag_name is not None) and (tag_id is not None):
+            logger.error('Error: unable to search, both tag name and id provided')
+            return None
         else:
-            return Tag(
-                name=item_data["name"],
-                id=item_data["id"],
-                colour=item_data["colour"],
-                created=item_data["created"],
-                modified=item_data["modified"],
-                description=item_data['description'],
-        )
+            parameters= f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="name" operator="EQUALS">{tag_name}</Criteria></filters></ServiceRequest>""" if tag_name is not None else f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="id" operator="EQUALS">{tag_id}</Criteria></filters></ServiceRequest>"""
+        tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+        items_found = int(tagData.find('count').text)
+        if items_found == 1:
+            tree =tagData.find('data')
+            for item in tree.findall('Tag'):
+                item_data = {}
+                item_data["id"] = item.find("id").text if item.find('id') is not None else None
+                item_data["name"] = item.find("name").text if item.find('name') is not None else None
+                item_data["created"] = item.find("created").text if item.find('created') is not None else None
+                item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
+                item_data["colour"] = item.find("color").text if item.find('color') is not None else None
+                item_data['description'] = item.find('description').text if item.find('description') is not None else None
+                item_data['has_children'] = item.find('children') if item.find('children') is not None else None
+            if item_data['has_children'] is not None:
+                self.child_tags_list = []
+                for list in tree.iter('children'):
+                    for items in list.iter('list'):
+                        for tags in items.iter('TagSimple'):
+                            single_tag = tags.find('id').text if item.find('id') is not None else None
+                            if single_tag is not None:
+                                tag = self.getTag(id=single_tag)
+                                self.child_tags_list.append(tag)
+                return Tag(
+                    name=item_data["name"],
+                    id=item_data["id"],
+                    colour=item_data["colour"],
+                    created=item_data["created"],
+                    modified=item_data["modified"],
+                    description=item_data['description'],
+                    child_tags=self.child_tags_list,
+                )
+            else:
+                return Tag(
+                    name=item_data["name"],
+                    id=item_data["id"],
+                    colour=item_data["colour"],
+                    created=item_data["created"],
+                    modified=item_data["modified"],
+                    description=item_data['description'],
+            )
+        if items_found > 1:
+            #TODO: return multiple tags for name-based search?
+            value = str(tag_id) if tag_id is not None else tag_name
+            logger.warning(f'Warning: multiple results returned for tag: {value}')
+            return None #for now...
+        if items_found < 1:
+            value = str(tag_id) if tag_id is not None else tag_name
+            logger.warning(f'Warning: unable to find tag: {value}')
+            return None
+
     def editTag(self, tag: Tag):
         call = "blah"
         #TODO
@@ -669,35 +686,42 @@ class QGActions:
         if colour is None:
             colour = "#FFFFFF"
         if not colour_validation.fullmatch(colour):
-            return False
+            logger.error(f'Error: colour provided is not valid hex code: {colour}')
+            return None
         parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name><color>{colour}</color></Tag></data></ServiceRequest>"""
         tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
-        tree =tagData.find('data')
-        for item in tree.findall('Tag'):
-            item_data = {}
-            item_data["id"] = item.find("id").text if item.find('id') is not None else None
-            item_data["name"] = item.find("name").text if item.find('name') is not None else None
-            item_data["created"] = item.find("created").text if item.find('created') is not None else None
-            item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
-            item_data["colour"] = item.find("color").text if item.find('color') is not None else None
-        return Tag(
-            item_data["name"],
-            item_data["id"],
-            item_data["colour"],
-            item_data["created"],
-            item_data["modified"],
-        )
+        for item in tagData.findall('responseCode'):
+            if item.text == 'SUCCESS':
+                tree =tagData.find('data')
+                for item in tree.findall('Tag'):
+                    item_data = {}
+                    item_data["id"] = item.find("id").text if item.find('id') is not None else None
+                    item_data["name"] = item.find("name").text if item.find('name') is not None else None
+                    item_data["created"] = item.find("created").text if item.find('created') is not None else None
+                    item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
+                    item_data["colour"] = item.find("color").text if item.find('color') is not None else None
+                return Tag(
+                    item_data["name"],
+                    item_data["id"],
+                    item_data["colour"],
+                    item_data["created"],
+                    item_data["modified"],
+                )
+            else:
+                logger.error(f'Error: unable to create tag: {name}')
+                return None
+
     def deleteTag(self, tag: Tag):
         # delete a tag given a tag object
         # input: Tag object
         # output: boolean denoting status of deletion attempt
-        call = 'delete/am/tag'
-        parameters = tag.id
-        if self.getTag(tag.id) is not None:
+        call = 'delete/am/tag/'+str(tag.id)
+        parameters = None
+        if self.getTag(tag.name) is not None:
             #delete process
             deletedTagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode('utf-8'))
-            tree = deletedTagData.getroot()
-            for item in tree.findall('responseCode'):
+            # tree = deletedTagData.getroot()
+            for item in deletedTagData.findall('responseCode'):
                 if item.text == 'SUCCESS':
                     return True
         else:
