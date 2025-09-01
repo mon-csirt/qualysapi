@@ -678,12 +678,41 @@ class QGActions:
             logger.warning(f'Warning: unable to find tag: {value}')
             return None
 
-    def editTag(self, tag: Tag):
-        call = "blah"
-        #TODO
+    def editTag(self, tag: Tag, new_name=None, new_colour=None):
+        #TODO: allow passing attributes as dict of attributes
+        #TODO: add additional editable attributes to function
+        call = f'update/am/tag/{str(tag.id)}'
+        if new_colour is not None:
+            colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
+            if not colour_validation.fullmatch(new_colour):
+                logger.error(f'Error: colour is not valid hex code: {new_colour}')
+                return None
+            else:
+                if new_name is not None:
+                    parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{new_name}</name><color>{new_colour}</color></Tag></data></ServiceRequest>"""
+                else:
+                    parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><color>{new_colour}</color></Tag></data></ServiceRequest>"""
+        elif (new_name is not None) and (new_colour is None):
+            parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{new_name}</name></Tag></data></ServiceRequest>"""
+        else:
+            logger.error('Error: Colour and name both None')
+            return None
+        tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+        for item in tagData.findall('responseCode'):
+            if item.text == 'SUCCESS':
+                tree =tagData.find('data')
+                tag_id = None
+                for item in tree.findall('Tag'):
+                    tag_id = item.find('id').text if item.find('id') is not None else None
+                return self.getTag(tag_id=tag_id)
+            else:
+                logger.error('Error: Tag failed to update')
+                return None
+
     def createTag(self, name: str, colour=None):
         #TODO: Validation of creation
         #TODO: ability to create tags with criticality, child tags, dynamic rules
+        #TODO: allow passing attributes for tag as dict of attribs
         call = 'create/am/tag'
         colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
         if colour is None:
@@ -718,7 +747,7 @@ class QGActions:
         # delete a tag given a tag object
         # input: Tag object
         # output: boolean denoting status of deletion attempt
-        call = 'delete/am/tag/'+str(tag.id)
+        call = f'delete/am/tag/{str(tag.id)}'
         parameters = None
         if self.getTag(tag.name) is not None:
             deletedTagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode('utf-8'))
