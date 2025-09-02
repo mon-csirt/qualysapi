@@ -1,27 +1,59 @@
 import logging
 import time
 from urllib import parse as urlparse
-
-from lxml import objectify
-
+import re
+# from lxml import objectify
+import xml.etree.ElementTree as ET
 from qualysapi.api_objects import *
-
-
+from qualysapi import connector
+#Globals
+child_tags_list = None
+logger = logging.getLogger(__name__)
 class QGActions:
-    def getHost(self, host):
-        call = "/api/2.0/fo/asset/host/"
-        parameters = {"action": "list", "ips": host, "details": "All"}
-        hostData = objectify.fromstring(self.request(call, parameters).encode("utf-8")).RESPONSE
-        hostData = hostData.HOST_LIST.HOST
-        return Host(
-            hostData.find("DNS"),
-            hostData.find("ID"),
-            hostData.find("IP"),
-            hostData.find("LAST_VULN_SCAN_DATETIME"),
-            hostData.find("NETBIOS"),
-            hostData.find("OS"),
-            hostData.find("TRACKING_METHOD"),
-        )
+    def getHost(self, host_name=None, host_id=None, verbose=False):
+        if verbose:
+            call = 'rest/2.0/get/am/asset'
+            parameters = host_id
+            #TODO: implement verbose retrieval
+        else:
+            call = "search/am/asset"
+            parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="name" operator="CONTAINS">{host_name}</Criteria></filters></ServiceRequest>"""
+            hostData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+            # hostData = hostData.HOST_LIST.HOST
+            tree =hostData.find('data')
+            for item in tree.findall('Asset'):
+                asset_id = item.find("id").text if item.find('id') is not None else None
+                item_data = {}
+                item_data["id"] = item.find("id").text if item.find('id') is not None else None
+                item_data["name"] = item.find("name").text if item.find('name') is not None else None
+                # asset_name=item_data["name"]
+                item_data["created"] = item.find("created").text if item.find('created') is not None else None
+                item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
+                item_data["type"] = item.find("type").text if item.find('type') is not None else None
+                item_data["has_tags"] = item.find('tags') if item.find('tags') is not None else None
+                if item_data['has_tags'] is not None:
+                    self.host_tags = []
+                    for children in tree.iter('tags'):
+                        for tags in children.iter('list'):
+                            for tag in tags.iter('TagSimple'):
+                                single_tag = tag.find('id').text if tag.find('id') is not None else None
+                                if single_tag is not None:
+                                    self.host_tags.append(self.getTag(id=single_tag))
+                    return Host(
+                        item_data["name"],
+                        item_data["id"],
+                        item_data["type"],
+                        item_data["created"],
+                        item_data["modified"],
+                        tags=self.host_tags
+                    )
+            return Host(
+                item_data["name"],
+                item_data["id"],
+                item_data["type"],
+                item_data["created"],
+                item_data["modified"],
+            )
 
     def listHosts(
         self,
@@ -448,40 +480,41 @@ class QGActions:
 
         return scanArray
 
-    def listChildTags(self, tag_name=None, tag_id=None, filename=None):
-        if tag_id:
-            files = (
-                """<ServiceRequest>
-<filters>
-<Criteria field="id" operator="EQUALS">"""
-                + tag_id
-                + """</Criteria>
-</filters>
-</ServiceRequest>"""
-            )
-        elif filename:
-            files = open(filename, "rb").read()
-        elif tag_name:
-            files = (
-                """<ServiceRequest>
-<filters>
-<Criteria field="name" operator="EQUALS">"""
-                + tag_name
-                + """</Criteria>
-</filters>
-</ServiceRequest>"""
-            ).encode("ascii", "ignore")
+#   don't need this anymore I reckon  
+#   def listChildTags(self, tag_name=None, tag_id=None, filename=None):
+#         if tag_id:
+#             files = (
+#                 """<ServiceRequest>
+# <filters>
+# <Criteria field="id" operator="EQUALS">"""
+#                 + tag_id
+#                 + """</Criteria>
+# </filters>
+# </ServiceRequest>"""
+#             )
+#         elif filename:
+#             files = open(filename, "rb").read()
+#         elif tag_name:
+#             files = (
+#                 """<ServiceRequest>
+# <filters>
+# <Criteria field="name" operator="EQUALS">"""
+#                 + tag_name
+#                 + """</Criteria>
+# </filters>
+# </ServiceRequest>"""
+#             ).encode("ascii", "ignore")
 
-        call = "/qps/rest/2.0/search/am/tag"
-        parameters = files
-        response = objectify.fromstring(
-            self.request(call, parameters, api_version=2, http_method="post").encode("utf-8")
-        )
-        childs = list()
-        for child in response.getchildren()[3][0].Tag.children.list.getchildren():
-            childs.append(child.getchildren())
+#         call = "/qps/rest/2.0/search/am/tag"
+#         parameters = files
+#         response = objectify.fromstring(
+#             self.request(call, parameters, api_version=2, http_method="post").encode("utf-8")
+#         )
+#         childs = list()
+#         for child in response.getchildren()[3][0].Tag.children.list.getchildren():
+#             childs.append(child.getchildren())
 
-        return childs
+#         return childs
 
     def launchScan(self, title, option_title, iscanner_name, asset_groups="", ip=""):
         # TODO: Add ability to scan by tag.
@@ -584,3 +617,145 @@ class QGActions:
             )
 
         return scanner_array
+
+    def getTag(self, tag_name=None,tag_id=None):
+        #TODO: fix recursion where multiple layers of child tags exist
+        #TODO: enable searching by all types of search parameters through arguments passed
+        #TODO: retrieve additional attributes such as rule for dynamic tags, criticality
+        call = "search/am/tag"
+        if (tag_name is not None) and (tag_id is not None):
+            logger.error('Error: unable to search, both tag name and id provided')
+            return None
+        else:
+            parameters= f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="name" operator="EQUALS">{tag_name}</Criteria></filters></ServiceRequest>""" if tag_name is not None else f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters><Criteria field="id" operator="EQUALS">{tag_id}</Criteria></filters></ServiceRequest>"""
+        tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+        items_found = int(tagData.find('count').text)
+        if items_found == 1:
+            tree =tagData.find('data')
+            for item in tree.findall('Tag'):
+                item_data = {}
+                item_data["id"] = item.find("id").text if item.find('id') is not None else None
+                item_data["name"] = item.find("name").text if item.find('name') is not None else None
+                item_data["created"] = item.find("created").text if item.find('created') is not None else None
+                item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
+                item_data["colour"] = item.find("color").text if item.find('color') is not None else None
+                item_data['description'] = item.find('description').text if item.find('description') is not None else None
+                item_data['has_children'] = item.find('children') if item.find('children') is not None else None
+            if item_data['has_children'] is not None:
+                self.child_tags_list = []
+                for list in tree.iter('children'):
+                    for items in list.iter('list'):
+                        for tags in items.iter('TagSimple'):
+                            single_tag = tags.find('id').text if item.find('id') is not None else None
+                            if single_tag is not None:
+                                tag = self.getTag(id=single_tag)
+                                self.child_tags_list.append(tag)
+                return Tag(
+                    name=item_data["name"],
+                    id=item_data["id"],
+                    colour=item_data["colour"],
+                    created=item_data["created"],
+                    modified=item_data["modified"],
+                    description=item_data['description'],
+                    child_tags=self.child_tags_list,
+                )
+            else:
+                return Tag(
+                    name=item_data["name"],
+                    id=item_data["id"],
+                    colour=item_data["colour"],
+                    created=item_data["created"],
+                    modified=item_data["modified"],
+                    description=item_data['description'],
+            )
+        if items_found > 1:
+            #TODO: return multiple tags for name-based search?
+            value = str(tag_id) if tag_id is not None else tag_name
+            logger.warning(f'Warning: multiple results returned for tag: {value}')
+            return None #for now...
+        if items_found < 1:
+            value = str(tag_id) if tag_id is not None else tag_name
+            logger.warning(f'Warning: unable to find tag: {value}')
+            return None
+
+    def editTag(self, tag: Tag, new_name=None, new_colour=None):
+        #TODO: allow passing attributes as dict of attributes
+        #TODO: add additional editable attributes to function
+        call = f'update/am/tag/{str(tag.id)}'
+        if new_colour is not None:
+            colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
+            if not colour_validation.fullmatch(new_colour):
+                logger.error(f'Error: colour is not valid hex code: {new_colour}')
+                return None
+            else:
+                if new_name is not None:
+                    parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{new_name}</name><color>{new_colour}</color></Tag></data></ServiceRequest>"""
+                else:
+                    parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><color>{new_colour}</color></Tag></data></ServiceRequest>"""
+        elif (new_name is not None) and (new_colour is None):
+            parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{new_name}</name></Tag></data></ServiceRequest>"""
+        else:
+            logger.error('Error: Colour and name both None')
+            return None
+        tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+        for item in tagData.findall('responseCode'):
+            if item.text == 'SUCCESS':
+                tree =tagData.find('data')
+                tag_id = None
+                for item in tree.findall('Tag'):
+                    tag_id = item.find('id').text if item.find('id') is not None else None
+                return self.getTag(tag_id=tag_id)
+            else:
+                logger.error('Error: Tag failed to update')
+                return None
+
+    def createTag(self, name: str, colour=None):
+        #TODO: Validation of creation
+        #TODO: ability to create tags with criticality, child tags, dynamic rules
+        #TODO: allow passing attributes for tag as dict of attribs
+        call = 'create/am/tag'
+        colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
+        if colour is None:
+            colour = "#FFFFFF"
+        if not colour_validation.fullmatch(colour):
+            logger.error(f'Error: colour provided is not valid hex code: {colour}')
+            return None
+        parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name><color>{colour}</color></Tag></data></ServiceRequest>"""
+        tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+        for item in tagData.findall('responseCode'):
+            if item.text == 'SUCCESS':
+                tree =tagData.find('data')
+                for item in tree.findall('Tag'):
+                    item_data = {}
+                    item_data["id"] = item.find("id").text if item.find('id') is not None else None
+                    item_data["name"] = item.find("name").text if item.find('name') is not None else None
+                    item_data["created"] = item.find("created").text if item.find('created') is not None else None
+                    item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
+                    item_data["colour"] = item.find("color").text if item.find('color') is not None else None
+                return Tag(
+                    item_data["name"],
+                    item_data["id"],
+                    item_data["colour"],
+                    item_data["created"],
+                    item_data["modified"],
+                )
+            else:
+                logger.error(f'Error: unable to create tag: {name}')
+                return None
+
+    def deleteTag(self, tag: Tag):
+        # delete a tag given a tag object
+        # input: Tag object
+        # output: boolean denoting status of deletion attempt
+        call = f'delete/am/tag/{str(tag.id)}'
+        parameters = None
+        if self.getTag(tag.name) is not None:
+            deletedTagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode('utf-8'))
+            for item in deletedTagData.findall('responseCode'):
+                if item.text == 'SUCCESS':
+                    return True
+                else:
+                    logger.error(f'Error: deletion failed for tag {tag.name}')
+                    return False
+        else:
+            return False

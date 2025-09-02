@@ -82,7 +82,7 @@ class QGConnector(api_actions.QGActions):
             if api_version in ("asset management", "assets", "tag", "tagging", "tags"):
                 # Convert to Asset Management API.
                 api_version = "am"
-            elif api_version in ("am2"):
+            elif api_version in ("am2", "gav"):
                 # Convert to Asset Management API v2
                 api_version = "am2"
             elif api_version in ("webapp", "web application scanning", "webapp scanning"):
@@ -253,18 +253,18 @@ class QGConnector(api_actions.QGActions):
         #
         # Set up headers.
         headers = {
-            "X-Requested-With": f"Parag Baxi QualysAPI (python) v{qualysapi.version.__version__}"
+            "X-Requested-With": f"MON-CSIRT QualysAPI (python) v{qualysapi.version.__version__}"
         }
         logger.debug("headers =\n%s", str(headers))
         # Portal API support XML/JSON exchange format (JSON for assets tagging and management).
         # The data exchange format must be specified in the headers.
         if api_version in ("am", "was", "am2"):
-            if self.data_exchange_format == 'xml':
-                headers["Content-type"] = "text/xml"
-                headers["Accept"] = "text/xml"
-            if self.data_exchange_format == 'json':
-                headers["Content-type"] = "application/json"
-                headers["Accept"] = "application/json"
+            # if self.data_exchange_format == 'xml':
+            headers["Content-type"] = "text/xml"
+            # headers["Accept"] = "text/xml"
+            # if self.data_exchange_format == 'json':
+            #     headers["Content-type"] = "application/json"
+            #     headers["Accept"] = "application/json"
         #
         # Set up http request method, if not specified.
         if not http_method:
@@ -406,122 +406,123 @@ class QGConnector(api_actions.QGActions):
 
             # Remember how many times left user can make against api_call.
             try:
-                self.rate_limit_remaining[api_call] = int(
-                    request.headers["x-ratelimit-remaining"]
-                )
-                logger.debug(
-                    "rate limit for api_call, %s = %s",
-                    api_call,
-                    self.rate_limit_remaining[api_call],
-                )
+                # self.rate_limit_remaining[api_call] = int(
+                #     request.headers["x-ratelimit-remaining"]
+                # )
+                # logger.debug(
+                #     "rate limit for api_call, %s = %s",
+                #     api_call,
+                #     self.rate_limit_remaining[api_call],
+                # )
                 response = request.text
-                if (
-                    "<CODE>1960</CODE>" in response
-                    and "<TEXT>This API cannot be run again until" in response
-                ):
-                    max_retries = 10
-                    retry_count = 0
-                    while (
-                        "<CODE>1960</CODE>" in response
-                        and "<TEXT>This API cannot be run again until" in response
-                    ):
-                        retry_count += 1
-                        time_to_wait = int(30)
-                        logger.info(
-                            "Concurrency Limit Exceeded waiting %d seconds. %d retries remaining"
-                            % (time_to_wait, max_retries - retry_count)
-                        )
-                        time.sleep(time_to_wait)
+                print(response)
+                # if (
+                #     "<CODE>1960</CODE>" in response
+                #     and "<TEXT>This API cannot be run again until" in response
+                # ):
+                #     max_retries = 10
+                #     retry_count = 0
+                #     while (
+                #         "<CODE>1960</CODE>" in response
+                #         and "<TEXT>This API cannot be run again until" in response
+                #     ):
+                #         retry_count += 1
+                #         time_to_wait = int(30)
+                #         logger.info(
+                #             "Concurrency Limit Exceeded waiting %d seconds. %d retries remaining"
+                #             % (time_to_wait, max_retries - retry_count)
+                #         )
+                #         time.sleep(time_to_wait)
 
-                        logger.info(str(url), str(data))  # self.auth, headers, self.proxies)
-                        if http_method == "get":
-                            # GET
-                            logger.debug("GET request.")
-                            request = self.session.get(
-                                url,
-                                params=data,
-                                auth=self.auth,
-                                headers=headers,
-                                proxies=self.proxies,
-                            )
-                        else:
-                            # POST
-                            logger.debug("POST request.")
-                            # Make POST request.
-                            request = self.session.post(
-                                url,
-                                data=data,
-                                auth=self.auth,
-                                headers=headers,
-                                proxies=self.proxies,
-                            )
-                        logger.debug("response headers =\n%s" % (str(request.headers)))
-                        response = request.text
-                        if retry_count >= max_retries:
-                            break
-                elif (
-                    "<CODE>1965</CODE>" in response
-                    and "<TEXT>This API cannot be run again for another" in response
-                ):
-                    max_retries = 10
-                    retry_count = 0
-                    while (
-                        "<CODE>1965</CODE>" in response
-                        and "<TEXT>This API cannot be run again for another" in response
-                    ):
-                        retry_count += 1
-                        time_to_wait = int(request.headers["x-ratelimit-towait-sec"])
-                        logger.info(
-                            "API Limit Exceeded waiting %d seconds. %d retries remaining"
-                            % (time_to_wait, max_retries - retry_count)
-                        )
-                        time.sleep(time_to_wait)
+                #         logger.info(str(url), str(data))  # self.auth, headers, self.proxies)
+                #         if http_method == "get":
+                #             # GET
+                #             logger.debug("GET request.")
+                #             request = self.session.get(
+                #                 url,
+                #                 params=data,
+                #                 auth=self.auth,
+                #                 headers=headers,
+                #                 proxies=self.proxies,
+                #             )
+                #         else:
+                #             # POST
+                #             logger.debug("POST request.")
+                #             # Make POST request.
+                #             request = self.session.post(
+                #                 url,
+                #                 data=data,
+                #                 auth=self.auth,
+                #                 headers=headers,
+                #                 proxies=self.proxies,
+                #             )
+                #         logger.debug("response headers =\n%s" % (str(request.headers)))
+                #         response = request.text
+                #         if retry_count >= max_retries:
+                #             break
+                # elif (
+                #     "<CODE>1965</CODE>" in response
+                #     and "<TEXT>This API cannot be run again for another" in response
+                # ):
+                #     max_retries = 10
+                #     retry_count = 0
+                #     while (
+                #         "<CODE>1965</CODE>" in response
+                #         and "<TEXT>This API cannot be run again for another" in response
+                #     ):
+                #         retry_count += 1
+                #         time_to_wait = int(request.headers["x-ratelimit-towait-sec"])
+                #         logger.info(
+                #             "API Limit Exceeded waiting %d seconds. %d retries remaining"
+                #             % (time_to_wait, max_retries - retry_count)
+                #         )
+                #         time.sleep(time_to_wait)
 
-                        logger.info(str(url), str(data))  # self.auth, headers, self.proxies)
-                        if http_method == "get":
-                            # GET
-                            logger.debug("GET request.")
-                            request = self.session.get(
-                                url,
-                                params=data,
-                                auth=self.auth,
-                                headers=headers,
-                                proxies=self.proxies,
-                            )
-                        else:
-                            # POST
-                            logger.debug("POST request.")
-                            # Make POST request.
-                            request = self.session.post(
-                                url,
-                                data=data,
-                                auth=self.auth,
-                                headers=headers,
-                                proxies=self.proxies,
-                            )
-                        logger.debug("response headers =\n%s" % (str(request.headers)))
-                        response = request.text
-                        if retry_count >= max_retries:
-                            break
+                #         logger.info(str(url), str(data))  # self.auth, headers, self.proxies)
+                #         if http_method == "get":
+                #             # GET
+                #             logger.debug("GET request.")
+                #             request = self.session.get(
+                #                 url,
+                #                 params=data,
+                #                 auth=self.auth,
+                #                 headers=headers,
+                #                 proxies=self.proxies,
+                #             )
+                #         else:
+                #             # POST
+                #             logger.debug("POST request.")
+                #             # Make POST request.
+                #             request = self.session.post(
+                #                 url,
+                #                 data=data,
+                #                 auth=self.auth,
+                #                 headers=headers,
+                #                 proxies=self.proxies,
+                #             )
+                #         logger.debug("response headers =\n%s" % (str(request.headers)))
+                #         response = request.text
+                #         if retry_count >= max_retries:
+                #             break
 
-                elif self.rate_limit_remaining[api_call] > rate_warn_threshold:
-                    logger.debug(
-                        "rate limit for api_call, %s = %s",
-                        api_call,
-                        self.rate_limit_remaining[api_call],
-                    )
-                elif (self.rate_limit_remaining[api_call] <= rate_warn_threshold) and (
-                    self.rate_limit_remaining[api_call] > 0
-                ):
-                    logger.warning(
-                        "Rate limit is about to being reached (remaining api calls = %s)",
-                        self.rate_limit_remaining[api_call],
-                    )
-                elif self.rate_limit_remaining[api_call] <= 0:
-                    logger.critical(
-                        "ATTENTION! RATE LIMIT HAS BEEN REACHED (remaining api calls = %s)!",
-                        self.rate_limit_remaining[api_call],
-                    )
+                # elif self.rate_limit_remaining[api_call] > rate_warn_threshold:
+                #     logger.debug(
+                #         "rate limit for api_call, %s = %s",
+                #         api_call,
+                #         self.rate_limit_remaining[api_call],
+                #     )
+                # elif (self.rate_limit_remaining[api_call] <= rate_warn_threshold) and (
+                #     self.rate_limit_remaining[api_call] > 0
+                # ):
+                #     logger.warning(
+                #         "Rate limit is about to being reached (remaining api calls = %s)",
+                #         self.rate_limit_remaining[api_call],
+                #     )
+                # elif self.rate_limit_remaining[api_call] <= 0:
+                #     logger.critical(
+                #         "ATTENTION! RATE LIMIT HAS BEEN REACHED (remaining api calls = %s)!",
+                #         self.rate_limit_remaining[api_call],
+                    # )
             except KeyError as e:
                 # Likely a bad api_call.
                 logger.debug(e)
@@ -532,6 +533,7 @@ class QGConnector(api_actions.QGActions):
                 pass
             # Response received.
             response = request.text
+            print(response)
             logger.debug("response text =\n%s", response)
             # Keep track of how many retries.
             retries += 1

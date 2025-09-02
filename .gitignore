@@ -50,3 +50,6 @@ config.ini
 .idea
 .qcrc.swp
 \.vscode/
+
+# ENV file
+.env
