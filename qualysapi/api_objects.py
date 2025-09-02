@@ -1,5 +1,5 @@
 import datetime
-
+import zoneinfo as TZ
 # from lxml import objectify
 
 
@@ -219,13 +219,13 @@ class Tag:
         date = process_created[0].split("-")
         time = process_created[1].split(":")
         self.created = datetime.datetime(
-            int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2])
+            int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2]), tzinfo=TZ.ZoneInfo("UTC") #Qualys defaults to UTC it seems
         )
         process_modified = str(modified).replace("T", " ").replace("Z", "").split(" ")
         date = process_modified[0].split("-")
         time = process_modified[1].split(":")
         self.modified = datetime.datetime(
-            int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2])
+            int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2]), tzinfo=TZ.ZoneInfo("UTC") #Qualys defaults to UTC it seems
         )
         self.description = description
         self.child_tags = child_tags

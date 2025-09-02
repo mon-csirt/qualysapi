@@ -621,7 +621,6 @@ class QGActions:
     def getTag(self, tag_name=None,tag_id=None):
         #TODO: fix recursion where multiple layers of child tags exist
         #TODO: enable searching by all types of search parameters through arguments passed
-        #TODO: retrieve additional attributes such as rule for dynamic tags, criticality
         call = "search/am/tag"
         if (tag_name is not None) and (tag_id is not None):
             logger.error('Error: unable to search, both tag name and id provided')
@@ -641,6 +640,9 @@ class QGActions:
                 item_data["colour"] = item.find("color").text if item.find('color') is not None else None
                 item_data['description'] = item.find('description').text if item.find('description') is not None else None
                 item_data['has_children'] = item.find('children') if item.find('children') is not None else None
+                item_data['rule_type'] = item.find('ruleType').text if item.find('ruleType') is not None else None
+                item_data['rule_value'] = item.find('ruleText').text if item.find('ruleText') is not None else None
+                item_data['criticality'] = item.find('criticalityScore').text if item.find('criticalityScore') is not None else None
             if item_data['has_children'] is not None:
                 self.child_tags_list = []
                 for list in tree.iter('children'):
@@ -658,6 +660,9 @@ class QGActions:
                     modified=item_data["modified"],
                     description=item_data['description'],
                     child_tags=self.child_tags_list,
+                    criticality=item_data['criticality'],
+                    dynamic=item_data['rule_type'],
+                    dynamic_rule=item_data['rule_value'],
                 )
             else:
                 return Tag(
@@ -667,6 +672,9 @@ class QGActions:
                     created=item_data["created"],
                     modified=item_data["modified"],
                     description=item_data['description'],
+                    criticality=item_data['criticality'],
+                    dynamic=item_data['rule_type'],
+                    dynamic_rule=item_data['rule_value'],
             )
         if items_found > 1:
             #TODO: return multiple tags for name-based search?
