@@ -618,7 +618,7 @@ class QGActions:
 
         return scanner_array
 
-    def getTag(self, tag_name=None,tag_id=None):
+    def getTag(self, tag_name: str | None = None,tag_id: int | None = None):
         #TODO: fix recursion where multiple layers of child tags exist
         #TODO: enable searching by all types of search parameters through arguments passed
         call = "search/am/tag"
@@ -633,24 +633,24 @@ class QGActions:
             tree =tagData.find('data')
             for item in tree.findall('Tag'):
                 item_data = {}
-                item_data["id"] = item.find("id").text if item.find('id') is not None else None
-                item_data["name"] = item.find("name").text if item.find('name') is not None else None
-                item_data["created"] = item.find("created").text if item.find('created') is not None else None
-                item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
-                item_data["colour"] = item.find("color").text if item.find('color') is not None else None
-                item_data['description'] = item.find('description').text if item.find('description') is not None else None
-                item_data['has_children'] = item.find('children') if item.find('children') is not None else None
-                item_data['rule_type'] = item.find('ruleType').text if item.find('ruleType') is not None else None
-                item_data['rule_value'] = item.find('ruleText').text if item.find('ruleText') is not None else None
-                item_data['criticality'] = item.find('criticalityScore').text if item.find('criticalityScore') is not None else None
-            if item_data['has_children'] is not None:
+                item_data["id"] = int(item.find("id").text) if item.find('id') is not None else None
+                item_data["name"] = str(item.find("name").text) if item.find('name') is not None else None
+                item_data["created"] = str(item.find("created").text) if item.find('created') is not None else None
+                item_data["modified"] = str(item.find("modified").text) if item.find('modified') is not None else None
+                item_data["colour"] = str(item.find("color").text) if item.find('color') is not None else None
+                item_data['description'] = str(item.find('description').text) if item.find('description') is not None else None
+                item_data['has_children'] = True if item.find('children') is not None else False
+                item_data['rule_type'] = str(item.find('ruleType').text) if item.find('ruleType') is not None else None
+                item_data['rule_value'] = str(item.find('ruleText').text) if item.find('ruleText') is not None else None
+                item_data['criticality'] = int(item.find('criticalityScore').text) if item.find('criticalityScore') is not None else None
+            if item_data['has_children']:
                 self.child_tags_list = []
                 for list in tree.iter('children'):
                     for items in list.iter('list'):
                         for tags in items.iter('TagSimple'):
-                            single_tag = tags.find('id').text if item.find('id') is not None else None
+                            single_tag = int(tags.find('id').text) if item.find('id') is not None else None
                             if single_tag is not None:
-                                tag = self.getTag(id=single_tag)
+                                tag = self.getTag(tag_id=single_tag)
                                 self.child_tags_list.append(tag)
                 return Tag(
                     name=item_data["name"],
@@ -686,22 +686,22 @@ class QGActions:
             logger.warning(f'Warning: unable to find tag: {value}')
             return None
 
-    def editTag(self, tag: Tag, new_name=None, new_colour=None):
+    def editTag(self, tag: Tag, name: str | None = None, colour: str | None = None, criticality: int | str | None = None,ruleType: str | None = None,ruleText: str | None = None):
         #TODO: allow passing attributes as dict of attributes
         #TODO: add additional editable attributes to function
         call = f'update/am/tag/{str(tag.id)}'
-        if new_colour is not None:
+        if colour is not None:
             colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
-            if not colour_validation.fullmatch(new_colour):
-                logger.error(f'Error: colour is not valid hex code: {new_colour}')
+            if not colour_validation.fullmatch(colour):
+                logger.error(f'Error: colour is not valid hex code: {colour}')
                 return None
             else:
-                if new_name is not None:
-                    parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{new_name}</name><color>{new_colour}</color></Tag></data></ServiceRequest>"""
+                if name is not None:
+                    parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name><color>{colour}</color></Tag></data></ServiceRequest>"""
                 else:
-                    parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><color>{new_colour}</color></Tag></data></ServiceRequest>"""
-        elif (new_name is not None) and (new_colour is None):
-            parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{new_name}</name></Tag></data></ServiceRequest>"""
+                    parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><color>{colour}</color></Tag></data></ServiceRequest>"""
+        elif (name is not None) and (colour is None):
+            parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name></Tag></data></ServiceRequest>"""
         else:
             logger.error('Error: Colour and name both None')
             return None

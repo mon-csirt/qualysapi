@@ -210,7 +210,7 @@ class Scanner:
         self.status = status
 
 class Tag:
-    def __init__(self, name: str, id: int, colour: str, created:str, modified:str,child_tags=None,description=None,criticality=None,dynamic=None,dynamic_rule=None):
+    def __init__(self, name: str, id: int, colour: str, created:str, modified:str,child_tags: list | None = None,description: str | None = None,criticality: int | None = None,dynamic: str | None = None,dynamic_rule: str | None = None):
         self.name = str(name)
         self.id = int(id)
         self.colour = str(colour)
