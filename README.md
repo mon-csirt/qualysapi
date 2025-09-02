@@ -104,6 +104,14 @@ proxy_username = kramer
 proxy_password = giddy up!
 ```
 
+Development environment setup
+======
+**Using a venv is strongly recommended**
+
+1. Clone the repository
+2. Navigate to the root folder where setup.py is present
+3. Create and activate a venv using your preferred tooling (e.g., VSCode Python Environments extension)
+4. Load the local copy of the library using `pip install -e .`
 
 License
 =======
