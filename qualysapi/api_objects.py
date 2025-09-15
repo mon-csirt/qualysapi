@@ -1,8 +1,5 @@
 import datetime
 import zoneinfo as TZ
-# from lxml import objectify
-
-
 class Host:
     def __init__(self, dns, id, host_type,created,modified,ip=None,last_scan=None,tags=None):
         self.dns = str(dns)
@@ -210,7 +207,7 @@ class Scanner:
         self.status = status
 
 class Tag:
-    def __init__(self, name: str, id: int, colour: str, created:str, modified:str,child_tags: list | None = None,description: str | None = None,criticality: int | None = None,dynamic: str | None = None,dynamic_rule: str | None = None):
+    def __init__(self, name: str, id: int, colour: str, created:str, modified:str,child_tags: list | None = None,description: str | None = None,criticality: int | None = None,rule_type: str | None = None,dynamic_rule: str | None = None):
         self.name = str(name)
         self.id = int(id)
         self.colour = str(colour)
@@ -229,7 +226,7 @@ class Tag:
         )
         self.description = description
         self.child_tags = child_tags
-        self.dynamic = dynamic
+        self.rule_type = rule_type
         self.dynamic_rule = dynamic_rule
         self.criticality = criticality
     def __repr__(self):

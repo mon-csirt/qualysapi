@@ -661,7 +661,7 @@ class QGActions:
                     description=item_data['description'],
                     child_tags=self.child_tags_list,
                     criticality=item_data['criticality'],
-                    dynamic=item_data['rule_type'],
+                    rule_type=item_data['rule_type'],
                     dynamic_rule=item_data['rule_value'],
                 )
             else:
@@ -673,7 +673,7 @@ class QGActions:
                     modified=item_data["modified"],
                     description=item_data['description'],
                     criticality=item_data['criticality'],
-                    dynamic=item_data['rule_type'],
+                    rule_type=item_data['rule_type'],
                     dynamic_rule=item_data['rule_value'],
             )
         if items_found > 1:
@@ -686,25 +686,25 @@ class QGActions:
             logger.warning(f'Warning: unable to find tag: {value}')
             return None
 
-    def editTag(self, tag: Tag, name: str | None = None, colour: str | None = None, criticality: int | str | None = None,ruleType: str | None = None,ruleText: str | None = None):
-        #TODO: allow passing attributes as dict of attributes
+    def editTag(self, tag: Tag, name: str | None = None, colour: str | None = None, criticality: int | None = None,rule_type: str | None = None,rule_text: str | None = None,child_tags: list | None = None,child_tag_action: str | None = None,description: str | None = None):
+        #TODO: allow passing attributes as dict of attributes?
         #TODO: add additional editable attributes to function
         call = f'update/am/tag/{str(tag.id)}'
+        parameters = """<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag>"""
         if colour is not None:
             colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
             if not colour_validation.fullmatch(colour):
                 logger.error(f'Error: colour is not valid hex code: {colour}')
                 return None
             else:
-                if name is not None:
-                    parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name><color>{colour}</color></Tag></data></ServiceRequest>"""
-                else:
-                    parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><color>{colour}</color></Tag></data></ServiceRequest>"""
-        elif (name is not None) and (colour is None):
-            parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name></Tag></data></ServiceRequest>"""
-        else:
-            logger.error('Error: Colour and name both None')
-            return None
+                parameters += f"""<color>{colour}</color>"""
+        if name is not None:
+            parameters +=f"""<name>{name}</name>"""
+        if criticality is not None and int(criticality) < 6 and int(criticality) > 0:
+            parameters +=f"""<criticalityScore>{int(criticality)}</criticalityScore>"""
+        if description is not None:
+            parameters += f"""<description>{description}</description>"""
+        parameters += """</Tag></data></ServiceRequest>"""
         tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
         for item in tagData.findall('responseCode'):
             if item.text == 'SUCCESS':
@@ -717,9 +717,9 @@ class QGActions:
                 logger.error('Error: Tag failed to update')
                 return None
 
-    def createTag(self, name: str, colour=None):
+    def createTag(self, name: str, colour: str | None = None, criticality: int | None = None,rule_type: str | None = None,rule_text: str | None = None,child_tags: list | None = None,child_tag_action: str | None = None,description: str | None = None):
         #TODO: Validation of creation
-        #TODO: ability to create tags with criticality, child tags, dynamic rules
+        #TODO: ability to create tags with child tags, dynamic rules
         #TODO: allow passing attributes for tag as dict of attribs
         call = 'create/am/tag'
         colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
@@ -728,7 +728,13 @@ class QGActions:
         if not colour_validation.fullmatch(colour):
             logger.error(f'Error: colour provided is not valid hex code: {colour}')
             return None
-        parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name><color>{colour}</color></Tag></data></ServiceRequest>"""
+        parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name>"""
+        if criticality is not None and int(criticality) < 6 and int(criticality) > 0:
+            parameters +=f"""<criticalityScore>{int(criticality)}</criticalityScore>"""
+        if description is not None:
+            parameters += f"""<description>{description}</description>"""
+        parameters += f"""</Tag></data></ServiceRequest>"""
+
         tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
         for item in tagData.findall('responseCode'):
             if item.text == 'SUCCESS':
