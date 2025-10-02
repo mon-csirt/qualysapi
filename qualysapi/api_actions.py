@@ -709,7 +709,7 @@ class QGActions:
 
     def editTag(self, tag: Tag, name: str | None = None, colour: str | None = None, criticality: int | None = None,rule_type: str | None = None,rule_text: str | None = None,child_tags: list | None = None,child_tag_action: str | None = None,description: str | None = None):
         #TODO: allow passing attributes as dict of attributes?
-        #TODO: add additional editable attributes to function
+        #TODO: child tags
         call = f'update/am/tag/{str(tag.id)}'
         parameters = """<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag>"""
         if colour is not None:
@@ -745,8 +745,7 @@ class QGActions:
                 return None
 
     def createTag(self, name: str, colour: str | None = None, criticality: int | None = None,rule_type: str | None = None,rule_text: str | None = None,child_tags: list | None = None,child_tag_action: str | None = None,description: str | None = None):
-        #TODO: Validation of creation
-        #TODO: ability to create tags with child tags, dynamic rules
+        #TODO: ability to create tags with child tags
         #TODO: allow passing attributes for tag as dict of attribs
         call = 'create/am/tag'
         colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
@@ -773,19 +772,8 @@ class QGActions:
             if item.text == 'SUCCESS':
                 tree =tagData.find('data')
                 for item in tree.findall('Tag'):
-                    item_data = {}
-                    item_data["id"] = item.find("id").text if item.find('id') is not None else None
-                    item_data["name"] = item.find("name").text if item.find('name') is not None else None
-                    item_data["created"] = item.find("created").text if item.find('created') is not None else None
-                    item_data["modified"] = item.find("modified").text if item.find('modified') is not None else None
-                    item_data["colour"] = item.find("color").text if item.find('color') is not None else None
-                return Tag(
-                    item_data["name"],
-                    item_data["id"],
-                    item_data["colour"],
-                    item_data["created"],
-                    item_data["modified"],
-                )
+                    id = int(item.find("id").text) if item.find('id') is not None else None
+                return self.getTag(tag_id=id)
             else:
                 logger.error(f'Error: unable to create tag: {name}')
                 return None
