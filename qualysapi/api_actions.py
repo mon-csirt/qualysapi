@@ -10,6 +10,20 @@ from qualysapi import connector
 child_tags_list = None
 logger = logging.getLogger(__name__)
 class QGActions:
+    def ruleValidator(self, rule_type: str, rule_body: str):
+        #TODO: validator for some of the rule types
+        match rule_type:
+            case 'network_range':
+                #IP range validation
+                print(rule_body)
+            case 'gav':
+                #idk honestly, but somehow i can i guess???
+                print(rule_body)
+            case 'asset_search':
+                #this needs to be xml ugh
+                print(rule_body)
+            
+            
     def getHost(self, host_name=None, host_id=None, verbose=False):
         if verbose:
             call = 'rest/2.0/get/am/asset'
@@ -712,7 +726,7 @@ class QGActions:
                 tag_id = None
                 for item in tree.findall('Tag'):
                     tag_id = item.find('id').text if item.find('id') is not None else None
-                return self.getTag(tag_id=tag_id)
+                return self.getTag(tag_id=tag_id) #required as returned tag on success does not contain all necessary attributes
             else:
                 logger.error('Error: Tag failed to update')
                 return None
