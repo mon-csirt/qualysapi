@@ -760,6 +760,12 @@ class QGActions:
             parameters +=f"""<criticalityScore>{int(criticality)}</criticalityScore>"""
         if description is not None:
             parameters += f"""<description>{description}</description>"""
+        if rule_type is not None and rule_text is not None: 
+            if rule_type in ("STATIC","GROOVY","OS_REGEX","NETWORK_RANGE","NAME_CONTAINS","INSTALLED_SOFTWARE","OPEN_PORTS","VULN_EXIST","ASSET_SEARCH","CLOUD_ASSET","BUSINESS_INFORMATION","GLOBAL_ASSET_VIEW","NETWORK_RANGE","TAG_SET") and self.ruleValidator(rule_type,rule_text):
+                parameters += f"""<ruleType>{rule_type}</ruleType><ruleText>{rule_text}</ruleText>"""
+            else:
+                logger.error(f'Error: Rule could not be validated: {rule_type} with value {rule_text}')
+                return None
         parameters += f"""</Tag></data></ServiceRequest>"""
 
         tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
