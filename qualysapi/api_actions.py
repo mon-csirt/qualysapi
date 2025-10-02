@@ -2,6 +2,7 @@ import logging
 import time
 from urllib import parse as urlparse
 import re
+import ipaddress
 # from lxml import objectify
 import xml.etree.ElementTree as ET
 from qualysapi.api_objects import *
@@ -11,16 +12,22 @@ child_tags_list = None
 logger = logging.getLogger(__name__)
 class QGActions:
     def ruleValidator(self, rule_type: str, rule_body: str):
-        #TODO: validator for some of the rule types
+        #TODO: validator for the harder rule types
         match rule_type:
-            case 'network_range':
+            case 'NETWORK_RANGE':
                 #IP range validation
-                print(rule_body)
-            case 'gav':
+                addresses = rule_body.split('-')
+                valid_addresses = 0
+                for address in addresses:
+                    try:
+                        ip = ipaddress.IPv4Address(address)
+                        valid_addresses += 1
+                    except ValueError:
+                        return False
+                return valid_addresses > 0  
+            case 'GLOBAL_ASSET_VIEW':
                 #idk honestly, but somehow i can i guess???
-                print(rule_body)
-            case 'asset_search':
-                #this needs to be xml ugh
+                return True #testing lol 
                 print(rule_body)
             
             
@@ -718,6 +725,12 @@ class QGActions:
             parameters +=f"""<criticalityScore>{int(criticality)}</criticalityScore>"""
         if description is not None:
             parameters += f"""<description>{description}</description>"""
+        if rule_type is not None and rule_text is not None: 
+            if rule_type in ("STATIC","GROOVY","OS_REGEX","NETWORK_RANGE","NAME_CONTAINS","INSTALLED_SOFTWARE","OPEN_PORTS","VULN_EXIST","ASSET_SEARCH","CLOUD_ASSET","BUSINESS_INFORMATION","GLOBAL_ASSET_VIEW","NETWORK_RANGE","TAG_SET") and self.ruleValidator(rule_type,rule_text):
+                parameters += f"""<ruleType>{rule_type}</ruleType><ruleText>{rule_text}</ruleText>"""
+            else:
+                logger.error(f'Error: Rule could not be validated: {rule_type} with value {rule_text}')
+                return None
         parameters += """</Tag></data></ServiceRequest>"""
         tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
         for item in tagData.findall('responseCode'):
