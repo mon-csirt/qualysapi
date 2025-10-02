@@ -731,6 +731,23 @@ class QGActions:
             else:
                 logger.error(f'Error: Rule could not be validated: {rule_type} with value {rule_text}')
                 return None
+        if child_tag_action in ('set','remove') and child_tags is not None:
+            if child_tag_action == 'set':
+                parameters += f"""<children><set>"""
+                for item in child_tags:
+                   if type(item) == str: #Creates a new tag (thanks API doco for not mentioning this)
+                       parameters += f"""<TagSimple><name>{item}</name></TagSimple>"""
+                   elif type(item) == Tag: #Adds an existing tag as a child
+                       parameters += f"""<TagSimple><id>{item.id}</id></TagSimple>"""
+                parameters += f"""</set></children>"""
+            if child_tag_action == 'remove':
+                parameters += f"""<children><remove>"""
+                for item in child_tags:
+                    if type(item) == Tag:
+                        parameters += f"""<TagSimple><id>{item.id}</id></TagSimple>"""
+                    elif type(item) == int:
+                        parameters += f"""<TagSimple><id>{int(item)}</id></TagSimple>"""
+                parameters += f"""</remove></children>"""
         parameters += """</Tag></data></ServiceRequest>"""
         tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
         for item in tagData.findall('responseCode'):
@@ -744,7 +761,7 @@ class QGActions:
                 logger.error('Error: Tag failed to update')
                 return None
 
-    def createTag(self, name: str, colour: str | None = None, criticality: int | None = None,rule_type: str | None = None,rule_text: str | None = None,child_tags: list | None = None,child_tag_action: str | None = None,description: str | None = None):
+    def createTag(self, name: str, colour: str | None = None, criticality: int | None = None,rule_type: str | None = None,rule_text: str | None = None,child_tags: list | None = None,description: str | None = None):
         #TODO: ability to create tags with child tags
         #TODO: allow passing attributes for tag as dict of attribs
         call = 'create/am/tag'
@@ -765,6 +782,14 @@ class QGActions:
             else:
                 logger.error(f'Error: Rule could not be validated: {rule_type} with value {rule_text}')
                 return None
+        if child_tags is not None:
+            parameters += f"""<children><set>"""
+            for item in child_tags:
+                if type(item) == Tag:
+                    parameters += f"""<TagSimple><id>{item.id}</id></TagSimple>"""
+                elif type(item) == str:
+                    parameters += f"""<TagSimple><name>{item}</name></TagSimple>"""
+            parameters += f"""</set></children>"""
         parameters += f"""</Tag></data></ServiceRequest>"""
 
         tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
