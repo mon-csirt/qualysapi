@@ -415,7 +415,7 @@ class QGConnector(api_actions.QGActions):
                 #     self.rate_limit_remaining[api_call],
                 # )
                 response = request.text
-                print(response)
+                # print(response)
                 # if (
                 #     "<CODE>1960</CODE>" in response
                 #     and "<TEXT>This API cannot be run again until" in response
