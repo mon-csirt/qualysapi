@@ -501,42 +501,6 @@ class QGActions:
 
         return scanArray
 
-#   don't need this anymore I reckon  
-#   def listChildTags(self, tag_name=None, tag_id=None, filename=None):
-#         if tag_id:
-#             files = (
-#                 """<ServiceRequest>
-# <filters>
-# <Criteria field="id" operator="EQUALS">"""
-#                 + tag_id
-#                 + """</Criteria>
-# </filters>
-# </ServiceRequest>"""
-#             )
-#         elif filename:
-#             files = open(filename, "rb").read()
-#         elif tag_name:
-#             files = (
-#                 """<ServiceRequest>
-# <filters>
-# <Criteria field="name" operator="EQUALS">"""
-#                 + tag_name
-#                 + """</Criteria>
-# </filters>
-# </ServiceRequest>"""
-#             ).encode("ascii", "ignore")
-
-#         call = "/qps/rest/2.0/search/am/tag"
-#         parameters = files
-#         response = objectify.fromstring(
-#             self.request(call, parameters, api_version=2, http_method="post").encode("utf-8")
-#         )
-#         childs = list()
-#         for child in response.getchildren()[3][0].Tag.children.list.getchildren():
-#             childs.append(child.getchildren())
-
-#         return childs
-
     def launchScan(self, title, option_title, iscanner_name, asset_groups="", ip=""):
         # TODO: Add ability to scan by tag.
         call = "/api/2.0/fo/scan/"
@@ -641,7 +605,6 @@ class QGActions:
 
     def getTag(self, tag_name: str | None = None,tag_id: int | None = None):
         #TODO: fix recursion where multiple layers of child tags exist
-        #TODO: enable searching by all types of search parameters through arguments passed
         call = "search/am/tag"
         if (tag_name is not None) and (tag_id is not None):
             logger.error('Error: unable to search, both tag name and id provided')
@@ -698,7 +661,6 @@ class QGActions:
                     dynamic_rule=item_data['rule_value'],
             )
         if items_found > 1:
-            #TODO: return multiple tags for name-based search?
             value = str(tag_id) if tag_id is not None else tag_name
             logger.warning(f'Warning: multiple results returned for tag: {value}, use findTags() instead')
             return None #for now...
@@ -760,8 +722,7 @@ class QGActions:
                 return None
 
     def createTag(self, name: str, colour: str | None = None, criticality: int | None = None,rule_type: str | None = None,rule_text: str | None = None,child_tags: list | None = None,description: str | None = None):
-        #TODO: ability to create tags with child tags
-        #TODO: allow passing attributes for tag as dict of attribs
+        #TODO: allow passing attributes for tag as dict of attribs?
         call = 'create/am/tag'
         colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
         if colour is None:
