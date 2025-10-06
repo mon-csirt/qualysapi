@@ -1,8 +1,5 @@
 import datetime
-
-# from lxml import objectify
-
-
+import zoneinfo as TZ
 class Host:
     def __init__(self, dns, id, host_type,created,modified,ip=None,last_scan=None,tags=None):
         self.dns = str(dns)
@@ -210,7 +207,7 @@ class Scanner:
         self.status = status
 
 class Tag:
-    def __init__(self, name: str, id: int, colour: str, created:str, modified:str,child_tags=None,description=None,criticality=None,dynamic=None,dynamic_rule=None):
+    def __init__(self, name: str, id: int, colour: str, created:str, modified:str,child_tags: list | None = None,description: str | None = None,criticality: int | None = None,rule_type: str | None = None,dynamic_rule: str | None = None):
         self.name = str(name)
         self.id = int(id)
         self.colour = str(colour)
@@ -219,17 +216,17 @@ class Tag:
         date = process_created[0].split("-")
         time = process_created[1].split(":")
         self.created = datetime.datetime(
-            int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2])
+            int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2]), tzinfo=TZ.ZoneInfo("UTC") #Qualys defaults to UTC it seems
         )
         process_modified = str(modified).replace("T", " ").replace("Z", "").split(" ")
         date = process_modified[0].split("-")
         time = process_modified[1].split(":")
         self.modified = datetime.datetime(
-            int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2])
+            int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2]), tzinfo=TZ.ZoneInfo("UTC") #Qualys defaults to UTC it seems
         )
         self.description = description
         self.child_tags = child_tags
-        self.dynamic = dynamic
+        self.rule_type = rule_type
         self.dynamic_rule = dynamic_rule
         self.criticality = criticality
     def __repr__(self):
