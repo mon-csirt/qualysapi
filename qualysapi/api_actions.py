@@ -700,7 +700,7 @@ class QGActions:
         if items_found > 1:
             #TODO: return multiple tags for name-based search?
             value = str(tag_id) if tag_id is not None else tag_name
-            logger.warning(f'Warning: multiple results returned for tag: {value}')
+            logger.warning(f'Warning: multiple results returned for tag: {value}, use findTags() instead')
             return None #for now...
         if items_found < 1:
             value = str(tag_id) if tag_id is not None else tag_name
@@ -708,8 +708,6 @@ class QGActions:
             return None
 
     def editTag(self, tag: Tag, name: str | None = None, colour: str | None = None, criticality: int | None = None,rule_type: str | None = None,rule_text: str | None = None,child_tags: list | None = None,child_tag_action: str | None = None,description: str | None = None):
-        #TODO: allow passing attributes as dict of attributes?
-        #TODO: child tags
         call = f'update/am/tag/{str(tag.id)}'
         parameters = """<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag>"""
         if colour is not None:
@@ -771,7 +769,7 @@ class QGActions:
         if not colour_validation.fullmatch(colour):
             logger.error(f'Error: colour provided is not valid hex code: {colour}')
             return None
-        parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name>"""
+        parameters = f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><data><Tag><name>{name}</name><color>{colour}</color>"""
         if criticality is not None and int(criticality) < 6 and int(criticality) > 0:
             parameters +=f"""<criticalityScore>{int(criticality)}</criticalityScore>"""
         if description is not None:
@@ -785,9 +783,9 @@ class QGActions:
         if child_tags is not None:
             parameters += f"""<children><set>"""
             for item in child_tags:
-                if type(item) == Tag:
+                if type(item) == Tag: #this adds an existing tag as a child
                     parameters += f"""<TagSimple><id>{item.id}</id></TagSimple>"""
-                elif type(item) == str:
+                elif type(item) == str: #this creates a tag with {name}, even if such a tag exists
                     parameters += f"""<TagSimple><name>{item}</name></TagSimple>"""
             parameters += f"""</set></children>"""
         parameters += f"""</Tag></data></ServiceRequest>"""
@@ -819,3 +817,157 @@ class QGActions:
                     return False
         else:
             return False
+
+    def findTags(self, criteria, operator, search_value):
+        call = "search/am/tag"
+        parameters= f"""<?xml version="1.0" encoding="UTF-8"?><ServiceRequest><filters>"""
+        match criteria:
+            case 'id':
+                #I'm not really sure why you'd want to use this one like this but I'll build it anyway
+                logger.info(f'Criteria: {criteria}')
+                if operator in ('EQUALS','NOT EQUALS','GREATER','LESSER') and type(search_value) == int:
+                    parameters += f"""<Criteria field='{criteria}' operator='{operator}'>{search_value}</Criteria>"""
+                elif type(search_value) == int:
+                    logger.error(f'Error: invalid operator: {operator} for criteria: {criteria}')
+                    return None
+                else:
+                    logger.error(f'Error: invalid query \"{criteria} {operator} {search_value}\"')
+            case 'name':
+                #check operators 
+                logger.info(f'Criteria: {criteria}')
+                if operator in ('EQUALS','NOT EQUALS','CONTAINS'):
+                    parameters += f"""<Criteria field='{criteria}' operator='{operator}'>{search_value}</Criteria>"""
+                else:
+                    logger.error(f'Error: invalid query \"{criteria} {operator} {search_value}\"')
+            case 'parent':
+                #check for id
+                logger.info(f'Criteria: {criteria}')
+                if type(search_value) == int:
+                    parameters += f"""<Criteria field='{criteria}' operator='{operator}'>{search_value}</Criteria>"""
+                else:
+                    logger.error(f'Error: invalid query \"{criteria} {operator} {search_value}\"')
+            case 'ruleType':
+                #check operators
+                logger.info(f'Criteria: {criteria}')
+                if criteria in ("STATIC","GROOVY","OS_REGEX","NETWORK_RANGE","NAME_CONTAINS","INSTALLED_SOFTWARE","OPEN_PORTS","VULN_EXIST","ASSET_SEARCH","CLOUD_ASSET","BUSINESS_INFORMATION","GLOBAL_ASSET_VIEW","NETWORK_RANGE","TAG_SET") and operator in ('EQUALS','NOT EQUALS'):
+                    parameters += f"""<Criteria field='{criteria}' operator='{operator}'>{search_value}</Criteria>"""
+                else:
+                    logger.error(f'Error: invalid query \"{criteria} {operator} {search_value}\"')
+            case 'provider':
+                #check against list of providers
+                logger.info(f'Criteria: {criteria}')
+                if criteria in ('EC2', 'AZURE', 'GCP', 'IBM', 'OCI', 'Alibaba') and operator in ('EQUALS','NOT EQUALS'):
+                    parameters += f"""<Criteria field='{criteria}' operator='{operator}'>{search_value}</Criteria>"""
+                else:
+                    logger.error(f'Error: invalid query \"{criteria} {operator} {search_value}\"')
+            case 'color':
+                logger.info(f'Criteria: {criteria}')
+                colour_validation = re.compile(r'#([A-Fa-f0-9]){6}')
+                if colour_validation.fullmatch(search_value) and operator in ('EQUALS','NOT EQUALS'):
+                    parameters += f"""<Criteria field='{criteria}' operator='{operator}'>{search_value}</Criteria>"""
+                else:
+                    logger.error(f'Error: invalid query \"{criteria} {operator} {search_value}\"')
+        parameters += f"""</filters></ServiceRequest>"""
+
+        tagData = ET.fromstring(self.request(api_call=call,http_method="POST",data=parameters,api_version="gav").encode("utf-8"))
+        items_found = int(tagData.find('count').text)
+        if items_found == 1:
+            tree =tagData.find('data')
+            for item in tree.findall('Tag'):
+                item_data = {}
+                item_data["id"] = int(item.find("id").text) if item.find('id') is not None else None
+                item_data["name"] = str(item.find("name").text) if item.find('name') is not None else None
+                item_data["created"] = str(item.find("created").text) if item.find('created') is not None else None
+                item_data["modified"] = str(item.find("modified").text) if item.find('modified') is not None else None
+                item_data["colour"] = str(item.find("color").text) if item.find('color') is not None else None
+                item_data['description'] = str(item.find('description').text) if item.find('description') is not None else None
+                item_data['has_children'] = True if item.find('children') is not None else False
+                item_data['rule_type'] = str(item.find('ruleType').text) if item.find('ruleType') is not None else None
+                item_data['rule_value'] = str(item.find('ruleText').text) if item.find('ruleText') is not None else None
+                item_data['criticality'] = int(item.find('criticalityScore').text) if item.find('criticalityScore') is not None else None
+            if item_data['has_children']:
+                self.child_tags_list = []
+                for list in tree.iter('children'):
+                    for items in list.iter('list'):
+                        for tags in items.iter('TagSimple'):
+                            single_tag = int(tags.find('id').text) if item.find('id') is not None else None
+                            if single_tag is not None:
+                                tag = self.getTag(tag_id=single_tag)
+                                self.child_tags_list.append(tag)
+                return Tag(
+                    name=item_data["name"],
+                    id=item_data["id"],
+                    colour=item_data["colour"],
+                    created=item_data["created"],
+                    modified=item_data["modified"],
+                    description=item_data['description'],
+                    child_tags=self.child_tags_list,
+                    criticality=item_data['criticality'],
+                    rule_type=item_data['rule_type'],
+                    dynamic_rule=item_data['rule_value'],
+                )
+            else:
+                return Tag(
+                    name=item_data["name"],
+                    id=item_data["id"],
+                    colour=item_data["colour"],
+                    created=item_data["created"],
+                    modified=item_data["modified"],
+                    description=item_data['description'],
+                    criticality=item_data['criticality'],
+                    rule_type=item_data['rule_type'],
+                    dynamic_rule=item_data['rule_value'],
+            )
+        if items_found > 1:
+            tags_list = []
+            tree =tagData.find('data')
+            for item in tree.findall('Tag'):
+                item_data = {}
+                item_data["id"] = int(item.find("id").text) if item.find('id') is not None else None
+                item_data["name"] = str(item.find("name").text) if item.find('name') is not None else None
+                item_data["created"] = str(item.find("created").text) if item.find('created') is not None else None
+                item_data["modified"] = str(item.find("modified").text) if item.find('modified') is not None else None
+                item_data["colour"] = str(item.find("color").text) if item.find('color') is not None else None
+                item_data['description'] = str(item.find('description').text) if item.find('description') is not None else None
+                item_data['has_children'] = True if item.find('children') is not None else False
+                item_data['rule_type'] = str(item.find('ruleType').text) if item.find('ruleType') is not None else None
+                item_data['rule_value'] = str(item.find('ruleText').text) if item.find('ruleText') is not None else None
+                item_data['criticality'] = int(item.find('criticalityScore').text) if item.find('criticalityScore') is not None else None
+                if item_data['has_children']:
+                    self.child_tags_list = []
+                    for list in tree.iter('children'):
+                        for items in list.iter('list'):
+                            for tags in items.iter('TagSimple'):
+                                single_tag = int(tags.find('id').text) if item.find('id') is not None else None
+                                if single_tag is not None:
+                                    tag = self.getTag(tag_id=single_tag)
+                                    self.child_tags_list.append(tag)
+                    tags_list.append(Tag(
+                        name=item_data["name"],
+                        id=item_data["id"],
+                        colour=item_data["colour"],
+                        created=item_data["created"],
+                        modified=item_data["modified"],
+                        description=item_data['description'],
+                        child_tags=self.child_tags_list,
+                        criticality=item_data['criticality'],
+                        rule_type=item_data['rule_type'],
+                        dynamic_rule=item_data['rule_value'],
+                    ))
+                else:
+                    tags_list.append(Tag(
+                        name=item_data["name"],
+                        id=item_data["id"],
+                        colour=item_data["colour"],
+                        created=item_data["created"],
+                        modified=item_data["modified"],
+                        description=item_data['description'],
+                        criticality=item_data['criticality'],
+                        rule_type=item_data['rule_type'],
+                        dynamic_rule=item_data['rule_value'],
+                ))
+            return tags_list
+
+        if items_found < 1:
+            logger.warning(f'Warning: unable to find tags matching: {criteria} {operator} {search_value}')
+            return None
