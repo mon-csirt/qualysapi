@@ -4,7 +4,7 @@ import datetime
 
 
 class Host:
-    def __init__(self, dns, id, host_type,created,modified,ip=None,last_scan=None,tags=None):
+    def __init__(self, dns, id, host_type,created,modified,ip=None,last_scan=None,tags=None,netbios=None,os=None):
         self.dns = str(dns)
         self.id = int(id)
         self.host_type = str(host_type)
@@ -22,8 +22,8 @@ class Host:
             self.last_scan = "never"
         self.tags = tags
         # except 
-        # self.netbios = str(netbios)
-        # self.os = str(os)
+        self.netbios = str(netbios) if type(netbios) is str else None
+        self.os = str(os) if type(os) is str else None
         # self.tracking_method = str(tracking_method)
 
     def __repr__(self):

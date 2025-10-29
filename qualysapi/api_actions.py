@@ -2,7 +2,7 @@ import logging
 import time
 from urllib import parse as urlparse
 import re
-# from lxml import objectify
+import lxml.objectify as objectify
 import xml.etree.ElementTree as ET
 from qualysapi.api_objects import *
 from qualysapi import connector
@@ -38,7 +38,7 @@ class QGActions:
                             for tag in tags.iter('TagSimple'):
                                 single_tag = tag.find('id').text if tag.find('id') is not None else None
                                 if single_tag is not None:
-                                    self.host_tags.append(self.getTag(id=single_tag))
+                                    self.host_tags.append(self.getTag(tag_id=single_tag))
                     return Host(
                         item_data["name"],
                         item_data["id"],
@@ -92,13 +92,15 @@ class QGActions:
         for host in hostData.RESPONSE.HOST_LIST.HOST:
             hostArray.append(
                 Host(
-                    host.find("DNS"),
-                    host.find("ID"),
-                    host.find("IP"),
-                    host.find("LAST_VULN_SCAN_DATETIME"),
-                    host.find("NETBIOS"),
-                    host.find("OS"),
-                    host.find("TRACKING_METHOD"),
+                    dns=host.find("DNS"),
+                    id=host.find("ID"),
+                    ip=host.find("IP"),
+                    last_scan=host.find("LAST_VULN_SCAN_DATETIME"),
+                    netbios=host.find("NETBIOS"),
+                    os=host.find("OS"),
+                    host_type=host.find("TRACKING_METHOD"),
+                    created=host.find("FIRST_FOUND_DATE"),
+                    modified=host.find("LAST_ACTIVITY")
                 )
             )
 
@@ -648,7 +650,7 @@ class QGActions:
                         for tags in items.iter('TagSimple'):
                             single_tag = tags.find('id').text if item.find('id') is not None else None
                             if single_tag is not None:
-                                tag = self.getTag(id=single_tag)
+                                tag = self.getTag(tag_id=single_tag)
                                 self.child_tags_list.append(tag)
                 return Tag(
                     name=item_data["name"],
